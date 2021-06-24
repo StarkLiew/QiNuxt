@@ -1,0 +1,67 @@
+version: "3"
+
+services:
+  nuxt:
+    build:
+      context: ./docker/14
+      dockerfile: Dockerfile
+    container_name: qi-website
+    restart: always
+    volumes:
+      - './:/usr/src/app'
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    command:
+      "npm run start"
+  nginx:
+    image: nginx:1.13
+    container_name: qi-nginx
+    ports:
+      - "${HOST_PORT:-80}:80"
+    volumes:
+      - './docker/14/nginx:/etc/nginx/conf.d'
+    depends_on:
+      - nuxt
+  mongo:
+    image: 'mongo:4.4'
+    container_name: qi-mongo
+    restart: always
+    environment:
+        MONGO_INITDB_ROOT_USERNAME: '${DB_USERNAME}'
+        MONGO_INITDB_ROOT_PASSWORD: '${DB_PASSWORD}'
+        MONGO_INITDB_DATABASE: '${DB_DATABASE}'
+    ports:
+        - '${FORWARD_MONGO_PORT:-27017}:27017'
+    volumes:
+        - 'qimongo:/data/db'
+    networks:
+        - qi
+  redis:
+    image: 'redis:alpine'
+    ports:
+        - '${FORWARD_REDIS_PORT:-6379}:6379'
+    volumes:
+        - 'qiredis:/data'
+    networks:
+        - qi
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+  mailhog:
+    image: 'mailhog/mailhog:latest'
+    ports:
+        - '${FORWARD_MAILHOG_PORT:-1025}:1025'
+        - '${FORWARD_MAILHOG_DASHBOARD_PORT:-8025}:8025'
+    networks:
+        - qi
+
+networks:
+    qi:
+        driver: bridge
+volumes:
+    qinginx:
+      driver: local
+    qimongo:
+      driver: local
+    qiredis:
+        driver: local
+
